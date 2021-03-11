@@ -1,0 +1,9 @@
+//
+// Created by Sth on 2021/2/23.
+//
+
+#ifndef RAYTRACING_STH_INITPROJECT_H
+#define RAYTRACING_STH_INITPROJECT_H
+
+
+#endif //RAYTRACING_STH_INITPROJECT_H
