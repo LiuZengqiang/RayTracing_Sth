@@ -9,6 +9,8 @@
 #include <vector>
 #include <math.h>
 #include <iostream>
+#include <random>
+#include <chrono>
 
 #define COUT true
 #define Pi 3.141592654
@@ -60,6 +62,28 @@ namespace global {
         return abs(a - b) < EPSLION;
     }
 
+    inline float dealOutError(float val, float min_val, float max_val) {
+        return std::max(std::min(val, max_val), min_val);
+    }
+
+    inline float getUniform() {
+        unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+        std::mt19937 g(seed);
+        std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+
+        return dist(g);
+    }
+
+    // pre n = (0, 1, 0)
+    inline glm::vec3 toWorld(glm::vec3 normal, glm::vec3 a) {
+        glm::vec3 n_(0.0f, normal.y < 0.0 ? -1.0f * std::sqrt(1.0 - normal.z * normal.z) : std::sqrt(
+                1.0 - normal.z * normal.z), normal.z);
+        glm::vec3 z = glm::normalize(glm::cross(normal, n_));
+        glm::vec3 x = glm::normalize(glm::cross(normal, z));
+        glm::vec3 y = normal;
+        return glm::normalize(a.x * x + a.y * y + a.z * z);
+    }
+
     /***
      * If a ray has intersection with a triangle whatever in back of front of the triangle.
      * @param v0
@@ -72,8 +96,9 @@ namespace global {
      * @param v
      * @return bool
      */
-    inline bool hasIntersectionRayTriangle(const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v2, const glm::vec3 &ori,
-                                const glm::vec3 &dir, float &t_near, float &u, float &v) {
+    inline bool
+    hasIntersectionRayTriangle(const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v2, const glm::vec3 &ori,
+                               const glm::vec3 &dir, float &t_near, float &u, float &v) {
 
         glm::vec3 e1 = v1 - v0;
         glm::vec3 e2 = v2 - v0;
@@ -105,7 +130,7 @@ namespace global {
 
     inline bool
     hasIntersectionRayBound(const glm::vec3 &p_min, const glm::vec3 &p_max, const glm::vec3 &ori, const glm::vec3 &dir,
-                    const glm::vec3 &div_inv) {
+                            const glm::vec3 &div_inv) {
         float t_min_x = (p_min.x - ori.x) * div_inv.x;
         float t_max_x = (p_max.x - ori.x) * div_inv.x;
         if (dir.x < 0.0f) {

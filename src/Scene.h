@@ -19,21 +19,40 @@ public:
     Scene(std::string file_path, std::string file_name) {
         file_path_ = file_path;
         file_name_ = file_name;
+        debug::coutStr("Begin initScene", "Scene::");
         initScene();
+        debug::coutStr("Begin buildBVHTree", "Scene::");
         buildBVHTree();
-        bvhTree_->debug();
+        debug();
+
+        Ray ray;
+        pathTracing(ray);
     };
+
+    glm::vec3 pathTracing(const Ray &ray) const;
+
+    void debug();
+
 private:
+    glm::vec3 shade(Intersection &p, glm::vec3 wo) const;
+
     void initScene();
 
     void buildBVHTree();
 
+    Triangle *sampleLightTriangle() const;
+
     std::vector<Triangle *> triangles_;
+    std::vector<Triangle *> light_triangles_;
     std::vector<Material *> materials_;
 
     std::string file_path_;
     std::string file_name_;
     BVHTree *bvhTree_ = nullptr;
+
+    float light_area_ = 0.0f;
+
+    float russian_roulette_ = 0.8f;
 };
 
 #endif //RAYTRACING_STH_SCENE_H

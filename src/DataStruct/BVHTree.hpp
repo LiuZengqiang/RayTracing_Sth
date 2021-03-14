@@ -5,7 +5,6 @@
 // BVH:(Bounding Volume Hierarchy)
 // leaf node: list of object, box
 // internal node: box, two children
-//TODO::Complete BVH
 
 #ifndef RAYTRACING_STH_BVHTREE_HPP
 #define RAYTRACING_STH_BVHTREE_HPP
@@ -48,22 +47,26 @@ struct BVHNode {
 class BVHTree {
 public:
     BVHTree(std::vector<Triangle *> triangles, int max_num_pre_node = 1) : max_num_pre_node_(max_num_pre_node) {
-
-        debug::coutStr("Begin build BVHTree.", "BVHTree::BVHTree()::");
         root_ = buildBVHTree(triangles);
-        debug::coutStr("End build BVHTree.", "BVHTree::BVHTree()::");
     }
 
     BVHNode *getRoot();
 
-    Intersection getIntersection(Ray &ray);
+    /**
+     * get intersection
+     * @param ray
+     * @return Intersection with happened_ information
+     */
+    Intersection getIntersection(const Ray &ray);
 
     void debug();
 
 private:
     BVHNode *buildBVHTree(std::vector<Triangle *> triangles_, SORT_TYPE sort_type = SORT_TYPE::X);
 
-    Intersection getIntersection(BVHNode *root, Ray &ray);
+    Intersection getIntersection(BVHNode *root, const Ray &ray);
+
+    int getBVHHeight(BVHNode *);
 
     int max_num_pre_node_ = 1;
     BVHNode *root_ = nullptr;
@@ -148,16 +151,19 @@ inline void BVHTree::debug() {
         std::cout << std::endl;
         que = std::move(temp_que);
     }
+
+    debug::coutInt(getBVHHeight(root_), "BVHTree height:");
     debug::coutStr("============");
 }
 
 
-inline Intersection BVHTree::getIntersection(Ray &ray) {
+inline Intersection BVHTree::getIntersection(const Ray &ray) {
     return getIntersection(root_, ray);
 }
 
-inline Intersection BVHTree::getIntersection(BVHNode *root, Ray &ray) {
+inline Intersection BVHTree::getIntersection(BVHNode *root, const Ray &ray) {
 
+    // if root is null or the ray has not intersection with root's bounding box
     if (root == nullptr ||
         global::hasIntersectionRayBound(root->bound.p_min_, root->bound.p_max_, ray.origin, ray.direction,
                                         ray.direction_inv) == false) {
@@ -165,21 +171,28 @@ inline Intersection BVHTree::getIntersection(BVHNode *root, Ray &ray) {
     }
     // should check every triangle in the bvh node
     if (root->isLeaf()) {
-        Intersection ret_inter = root->triangles_[0]->getIntersection(ray);
+        Intersection ret_inter = root->triangles_[0]->getIntersectionWithoutLimit(ray);
         for (int i = 1; i < root->triangles_.size(); i++) {
-            Intersection temp_inter = root->triangles_[i]->getIntersection(ray);
+            Intersection temp_inter = root->triangles_[i]->getIntersectionWithoutLimit(ray);
             if (ret_inter.distance_ > temp_inter.distance_) {
                 ret_inter = std::move(temp_inter);
             }
         }
         return ret_inter;
     } else {
-
         Intersection left_inter = getIntersection(root->left, ray);
         Intersection right_inter = getIntersection(root->right, ray);
         return left_inter.distance_ < right_inter.distance_ ? left_inter : right_inter;
     }
 
+}
+
+inline int BVHTree::getBVHHeight(BVHNode *root) {
+    if (root == nullptr) {
+        return 0;
+    } else {
+        return std::max(getBVHHeight(root->left), getBVHHeight(root->right)) + 1;
+    };
 }
 
 #endif //RAYTRACING_STH_BVHTREE_HPP

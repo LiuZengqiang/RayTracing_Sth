@@ -15,6 +15,7 @@ struct Ray {
     Ray(glm::vec3 ori, glm::vec3 dir) : origin(ori), direction(glm::normalize(dir)) {
         direction_inv = glm::vec3(1.0f / direction.x, 1.0f / direction.y, 1.0f / direction.z);
     }
+    Ray(){};
     glm::vec3 operator()(double t) const {
         glm::vec3 temp_vec3(direction);
         temp_vec3 *= t;

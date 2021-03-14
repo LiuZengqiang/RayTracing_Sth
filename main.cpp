@@ -7,6 +7,8 @@
 #include "Scene.h"
 
 int main() {
-    Scene scene("D:\\CLionProjects\\RayTracing_Sth\\input\\", "test.obj");
+    int height = 500;
+    int width = 500;
+    Scene scene("D:\\CLionProjects\\RayTracing_Sth\\input\\cornellbox\\", "cornellbox.obj");
     return 0;
 }

@@ -94,7 +94,6 @@ inline void Bound::debug() {
     debug::coutVec3(p_max_, "p_max:");
 }
 
-// todo::complete the triangle class
 class Triangle {
 public:
     // construct function
@@ -114,13 +113,14 @@ public:
         bound_ = Bound(v0_, v1_, v2_);
     };
 
-    // TODO::
     /***
-     * Get a intersection of a ray with the triangle.
+     * Get a intersection of a ray with the triangle.Must has different direction.
      * @param ray
      * @return
      */
-    Intersection getIntersection(const Ray &ray);
+    Intersection getIntersectionWithLimit(const Ray &ray);
+
+    Intersection getIntersectionWithoutLimit(const Ray &ray);
 
     Bound getBound();
 
@@ -162,17 +162,20 @@ inline Material *Triangle::getMaterial() {
     return material_;
 }
 
+/**
+ * get a sample intersection
+ * @return Intersection without happened_ information
+ */
 inline Intersection Triangle::getSample() {
     assert(this->hasEmission());
     Intersection ret_inter;
-    srand(time(NULL));
-    float u = rand() / (RAND_MAX * 1.0f);
-    float v = rand() / (RAND_MAX * 1.0f);
+    float u = global::getUniform();
+    float v = global::getUniform();
 
     if (u + v > 1.0f) {
         float temp_v = v;
         v = 1.0f - u;
-        u = 1.0 - temp_v;
+        u = 1.0f - temp_v;
     }
 
     float t = 1.0f - u - v;
@@ -187,13 +190,29 @@ inline bool Triangle::hasEmission() {
     return this->material_->hasEmission();
 }
 
-inline Intersection Triangle::getIntersection(const Ray &ray) {
+inline Intersection Triangle::getIntersectionWithLimit(const Ray &ray) {
     Intersection ret_inter;
 
     // ray has intersection in triangle's back
     if (glm::dot(ray.direction, normal_) > 0) {
         return ret_inter;
     }
+    float u, v, t_near = 0.0f;
+    if (global::hasIntersectionRayTriangle(v0_, v1_, v2_, ray.origin, ray.direction, t_near, u, v)) {
+        ret_inter.happened_ = true;
+        ret_inter.coords_ = ray(t_near);
+        ret_inter.texture_coords_ = glm::vec3((1.0f - u - v) * t0_ + u * t1_ + v * t2_);;
+        ret_inter.normal_ = normal_;
+        ret_inter.distance_ = t_near;
+        ret_inter.triangle_ = this;
+        return ret_inter;
+    } else {
+        return ret_inter;
+    }
+}
+
+inline Intersection Triangle::getIntersectionWithoutLimit(const Ray &ray) {
+    Intersection ret_inter;
     float u, v, t_near = 0.0f;
     if (global::hasIntersectionRayTriangle(v0_, v1_, v2_, ray.origin, ray.direction, t_near, u, v)) {
         ret_inter.happened_ = true;
