@@ -163,6 +163,7 @@ inline Intersection BVHTree::getIntersection(const Ray &ray) {
 
 inline Intersection BVHTree::getIntersection(BVHNode *root, const Ray &ray) {
 
+
     // if root is null or the ray has not intersection with root's bounding box
     if (root == nullptr ||
         global::hasIntersectionRayBound(root->bound.p_min_, root->bound.p_max_, ray.origin, ray.direction,

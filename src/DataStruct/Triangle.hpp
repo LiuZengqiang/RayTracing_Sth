@@ -122,6 +122,8 @@ public:
 
     Intersection getIntersectionWithoutLimit(const Ray &ray);
 
+    glm::vec3 getEmission();
+
     Bound getBound();
 
     float getArea();
@@ -225,6 +227,10 @@ inline Intersection Triangle::getIntersectionWithoutLimit(const Ray &ray) {
     } else {
         return ret_inter;
     }
+}
+
+inline glm::vec3 Triangle::getEmission() {
+    return this->material_->getEmission();
 }
 
 #endif //RAYTRACING_STH_TRIANGLE_HPP

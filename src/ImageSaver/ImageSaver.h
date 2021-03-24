@@ -34,21 +34,23 @@ public:
 
         for (auto i = 0; i < width * height; ++i) {
             static unsigned char color[3];
-            color[0] = (unsigned char) (255 * std::pow(clamp(0, 1, framebuffer[i].x), 0.6f));
-            color[1] = (unsigned char) (255 * std::pow(clamp(0, 1, framebuffer[i].y), 0.6f));
-            color[2] = (unsigned char) (255 * std::pow(clamp(0, 1, framebuffer[i].z), 0.6f));
+            color[0] = (unsigned char) (255 * std::pow(global::clamp(image_data[i].x, 0.0f, 1.0f), 0.6f));
+            color[1] = (unsigned char) (255 * std::pow(global::clamp(image_data[i].y, 0.0f, 1.0f), 0.6f));
+            color[2] = (unsigned char) (255 * std::pow(global::clamp(image_data[i].z, 0.0f, 1.0f), 0.6f));
+//            if (i == (width * height) / 2) {
+//                std::cout << "image_data:(" << image_data[i].x << "," << image_data[i].y << "," << image_data[i].z << ")"
+//                          << std::endl;
+//                std::cout << "color:(" << color[0] << "," << color[1] << "," << color[2] << ")" << std::endl;
+//            }
             fwrite(color, 1, 3, fp);
         }
         fclose(fp);
         std::cout << "End save image." << std::endl;
     }
 
+    static ImageSaver *instance_;
 private:
-    ImageSaver *instance_ = nullptr;
-
-    float clamp(float min_val, float max_val, float val) {
-        return fmax(fmin(val, max_val), min_val);
-    }
 };
 
+ImageSaver *ImageSaver::instance_ = nullptr;
 #endif //RAYTRACING_STH_IMAGESAVER_H

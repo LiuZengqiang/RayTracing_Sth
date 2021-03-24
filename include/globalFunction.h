@@ -13,7 +13,7 @@
 #include <chrono>
 
 #define COUT true
-#define Pi 3.141592654
+#define Pi float(3.141592654)
 #define EPSLION 1e-6
 namespace debug {
     inline void coutInt(int i, std::string pre = "", std::string suf = "") {
@@ -58,20 +58,35 @@ namespace debug {
 
 }
 namespace global {
+
+    static std::default_random_engine engine;
+
     inline bool floatEqual(const float &a, const float &b) {
         return abs(a - b) < EPSLION;
     }
 
-    inline float dealOutError(float val, float min_val, float max_val) {
+    inline float clamp(float val, float min_val = 0.0f, float max_val = 1.0f) {
         return std::max(std::min(val, max_val), min_val);
     }
 
-    inline float getUniform() {
-        unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-        std::mt19937 g(seed);
-        std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+    inline glm::vec3 clamp(glm::vec3 val, float min_val = 0.0f, float max_val = 1.0f) {
+        glm::vec3 ret = val;
+        ret.x = clamp(ret.x);
+        ret.y = clamp(ret.y);
+        ret.z = clamp(ret.z);
+        return ret;
+    }
 
-        return dist(g);
+    inline float getUniform() {
+        std::uniform_real_distribution<float> uniform_distribution(0.0f, 1.0f);
+        return uniform_distribution(engine);
+
+//        unsigned seed = time(0);
+//        unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+//        std::mt19937 g(seed);
+//        std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+//
+//        return dist(g);
     }
 
     // pre n = (0, 1, 0)
@@ -82,6 +97,16 @@ namespace global {
         glm::vec3 x = glm::normalize(glm::cross(normal, z));
         glm::vec3 y = normal;
         return glm::normalize(a.x * x + a.y * y + a.z * z);
+    }
+
+    /**
+     * Get reflection vector by wi and normal
+     * @param wi, normalized vector
+     * @param normal, normalized vector
+     * @return
+     */
+    inline glm::vec3 getReflection(glm::vec3 wi, glm::vec3 normal) {
+        return 2.0f * normal * (glm::dot(normal, wi)) - wi;
     }
 
     /***
@@ -102,7 +127,7 @@ namespace global {
 
         glm::vec3 e1 = v1 - v0;
         glm::vec3 e2 = v2 - v0;
-        glm::vec3 p = glm::cross(dir, p);
+        glm::vec3 p = glm::cross(dir, e2);
         float det = glm::dot(e1, p);
         if (det <= 0.0f) {
             return false;
@@ -158,7 +183,7 @@ namespace global {
 
         float t_enter = std::max(t_min_x, std::max(t_min_y, t_min_z));
         float t_exit = std::min(t_max_x, std::min(t_max_y, t_max_z));
-        return t_enter < t_exit;
+        return t_enter < t_exit + EPSLION;
     };
 }
 

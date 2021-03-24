@@ -7,4 +7,4 @@ include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${PROJECT_SOURCE_DIR}/src)
 
 
-add_executable(RayTracing_Sth main.cpp src/Scene.cpp)
+add_executable(RayTracing_Sth main.cpp src/Scene.hpp)
