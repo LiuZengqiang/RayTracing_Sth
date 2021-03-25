@@ -23,9 +23,11 @@
 
 class Scene {
 public:
-    Scene(std::string file_path, std::string file_name) {
-        file_path_ = file_path;
-        file_name_ = file_name;
+
+    Scene(std::string file_path, std::string file_name, glm::vec3 position = glm::vec3(0.0f, 0.0f, 2.5f),
+          glm::vec3 look_at = glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f),
+          float fov = 60.0f) : file_path_(file_path), file_name_(file_name), position_(position), look_at_(look_at),
+                               up_(up), fov_(fov) {
         debug::coutStr("Begin initScene", "Scene::");
         initScene();
         debug::coutStr("Begin buildBVHTree", "Scene::");
@@ -35,29 +37,24 @@ public:
     };
 
     void saveImage() {
-        image_width_ = 100;
-        image_height_ = 100;
-
+        image_width_ = 1024;
+        image_height_ = 1024;
+        int ssp = 30;
         image_data_.resize(image_width_ * image_height_);
+        glm::vec3 direction = glm::normalize(look_at_ - position_);
+        up_ = glm::normalize(glm::cross(glm::cross(direction, up_), direction));
+        glm::vec3 right = glm::normalize(glm::cross(direction, up_));
 
-        glm::vec3 position(0.0f, 0.0f, 2.5f);
-        glm::vec3 lookAt(0.0f, 0.0f, 0.0f);
+        fov_ = fov_ / 180.0f * Pi;
 
-        glm::vec3 direction = glm::normalize(lookAt - position);
-        glm::vec3 up(0.0f, 1.0f, 0.0f);
-        up = glm::normalize(glm::cross(glm::cross(direction, up), direction));
-        glm::vec3 right = glm::normalize(glm::cross(direction, up));
-        float fov = 60.0f;
-
-        fov = fov / 180.0f * Pi;
-        float d = image_height_ * 0.5 / std::tan(fov * 0.5);
-        glm::vec3 o = position + d * direction;
+        float d = image_height_ * 0.5 / std::tan(fov_ * 0.5);
+        glm::vec3 o = position_ + d * direction;
         glm::vec3 left_up =
-                o + 0.5f * image_height_ * up - 0.5f * image_width_ * right;
+                o + 0.5f * image_height_ * up_ - 0.5f * image_width_ * right;
         glm::vec3 right_up =
-                o + 0.5f * image_height_ * up + 0.5f * image_width_ * right;
+                o + 0.5f * image_height_ * up_ + 0.5f * image_width_ * right;
         glm::vec3 left_bottom =
-                o - 0.5f * image_height_ * up - 0.5f * image_width_ * right;
+                o - 0.5f * image_height_ * up_ - 0.5f * image_width_ * right;
 
         glm::vec3 du = (right_up - left_up);
         glm::vec3 dv = (left_bottom - left_up);
@@ -65,22 +62,21 @@ public:
         debug::coutVec3(right_up, "right_up:");
         debug::coutVec3(left_bottom, "left_bottom:");
 //    Ray ray(position, glm::normalize(left_bottom - position));
-        Ray ray(position, glm::vec3(0.0f, 0.0f, -1.0f));
+        Ray ray(position_, glm::vec3(0.0f, 0.0f, -1.0f));
         glm::vec3 val = pathTracing(ray);
         debug::coutVec3(val, "val:");
 
         for (int i = 0; i < image_height_; i++) {
             for (int j = 0; j < image_width_; j++) {
 
-
                 glm::vec3 val(0, 0, 0);
-                for (int k = 0; k < 40; k++) {
+                for (int k = 0; k < ssp; k++) {
                     glm::vec3 target(left_up + ((static_cast<float >(j) + global::getUniform()) / image_width_) * du +
                                      ((static_cast<float >(i) + global::getUniform()) / image_height_) * dv);
-                    ray = Ray(position, glm::normalize(target - position));
+                    ray = Ray(position_, glm::normalize(target - position_));
                     val += pathTracing(ray);
                 }
-                val /= 40;
+                val /= ssp;
                 image_data_[i * image_width_ + j] = val;
             }
             debug::coutInt(i);
@@ -89,29 +85,26 @@ public:
         imageSaver->saveImage(image_data_, image_width_, image_height_);
     }
 
-//    glm::vec3 pathTracing(const Ray &ray) const;
-
     glm::vec3 pathTracing(const Ray &ray, int depth = 0) const {
+
         Intersection intersection = bvhTree_->getIntersection(ray);
 
         if (intersection.happened_ == false || glm::dot(intersection.normal_, ray.direction) > 0.0f) {
             return glm::vec3(0.0f, 0.0f, 0.0f);
         } else if (intersection.triangle_->hasEmission()) {
             return global::clamp(intersection.triangle_->getEmission());
-        } else if (depth <= 10) {
+        } else if (depth <= 6) {
             Material *material = intersection.triangle_->material_;
-
             glm::vec3 indirect_light(0.0f);
-
             if (glm::length(material->getKd()) >= EPSLION) {
                 Ray next_ray_diffuse = intersection.triangle_->material_->getWoRayDiffuse(-1.0f * ray.direction,
                                                                                           intersection.normal_,
                                                                                           intersection.coords_);
-//            next_ray_diffuse.origin = next_ray_diffuse.origin + 0.001f * next_ray_diffuse.direction;
                 Intersection next_inter = bvhTree_->getIntersection(next_ray_diffuse);
                 if (next_inter.happened_ == false || next_inter.triangle_->hasEmission() ||
                     glm::dot(next_inter.normal_, next_ray_diffuse.direction) > 0.0f) { ;
                 } else {
+                    // 如果有纹理
                     if (intersection.triangle_->material_->getTexture() != nullptr) {
                         indirect_light += material->getKd() * pathTracing(next_ray_diffuse, depth + 1) *
                                           material->getTexture()->getPixel(intersection.texture_coords_[0],
@@ -121,93 +114,46 @@ public:
                     }
                 }
             }
+
             if (glm::length(material->getKs()) >= EPSLION) {
                 Ray next_ray_specular = intersection.triangle_->material_->getWoRaySpecular(-1.0f * ray.direction,
                                                                                             intersection.normal_,
                                                                                             intersection.coords_);
-//            next_ray_specular.origin = next_ray_specular.origin + 0.001f * next_ray_specular.direction;
+
                 Intersection next_inter = bvhTree_->getIntersection(next_ray_specular);
                 if (next_inter.happened_ == false || next_inter.triangle_->hasEmission() ||
                     glm::dot(next_inter.normal_, next_ray_specular.direction) > 0.0f) { ;
                 } else {
-                    indirect_light += material->getKs() * pathTracing(next_ray_specular, depth + 1);
+                    if (intersection.triangle_->material_->getTexture() != nullptr) {
+                        indirect_light += material->getKs() * pathTracing(next_ray_specular, depth + 1) *
+                                          material->getTexture()->getPixel(intersection.texture_coords_[0],
+                                                                           intersection.texture_coords_[1]);
+                    } else {
+                        indirect_light += material->getKs() * pathTracing(next_ray_specular, depth + 1);
+                    }
                 }
             }
             indirect_light = global::clamp(indirect_light);
-
-//        Ray next_ray = intersection.triangle_->material_->getWoRay(-1.0f * ray.direction, intersection.normal_,
-//                                                                   intersection.coords_);
-//        // 下一个交点
-//        next_ray.origin = next_ray.origin + 0.001f * next_ray.direction;
-//
-//        Intersection next_inter = bvhTree_->getIntersection(next_ray);
-//
-//        if (next_inter.happened_ == false || next_inter.triangle_->hasEmission() ||
-//            glm::dot(next_inter.normal_, next_ray.direction) > 0.0f) { ;
-//        } else {
-//            if (next_ray.type != RAY_TYPE::NONE) {
-//                indirect_light = pathTracing(next_ray, depth + 1);
-//                indirect_light *= (material->getKd() + material->getKs()) * 0.5f;
-////                switch (next_ray.type) {
-////                    case RAY_TYPE::DIFFUSE:
-////                        indirect_light = material->getKd() * indirect_light;
-////                        break;
-////                    case RAY_TYPE::SPECULAR:
-//////                        debug::coutStr("specular", "pathTracing::");
-////                        indirect_light = material->getKs() * indirect_light;
-////                        break;
-////                    case RAY_TYPE::TRANSMISSION:
-////                        debug::coutStr("transmission.");
-////                        break;
-////                    default:
-////                        break;
-////                }
-//            }
-////            indirect_light = global::clamp(indirect_light);
-//        }
             glm::vec3 direct_light = externalLight(ray, intersection);
-//        int sample_size = 10;
-//        for (int i = 0; i < light_triangles_.size(); i++) {
-//            glm::vec3 single_ret(0.0f);
-//
-//            for (int j = 0; j < sample_size; j++) {
-//                Intersection inter = light_triangles_[i]->getSample();
-//
-//                Ray direct_ray = Ray(intersection.coords_, glm::normalize(inter.coords_ - intersection.coords_));
-//
-//                Intersection inter_other = bvhTree_->getIntersection(direct_ray);
-//
-//                float ray_distance = glm::length(inter.coords_ - intersection.coords_);
-//
-//                if (inter_other.distance_ < ray_distance ||
-//                    glm::dot(intersection.normal_, direct_ray.direction) < 0.0f ||
-//                    glm::dot(inter.normal_, direct_ray.direction) > 0.0f) {
-//                    continue;
-//                } else {
-//                    float cos_i = global::clamp(glm::dot(intersection.normal_, direct_ray.direction));
-//                    float cos_o = global::clamp(glm::dot(inter.normal_, -1.0f * direct_ray.direction));
-//                    glm::vec3 e = cos_i * cos_o / (ray_distance * ray_distance) * light_triangles_[i]->getArea() *
-//                                  light_triangles_[i]->getEmission();
-//                    single_ret += material->getKd() * e;
-//                }
-//            }
-//
-//            single_ret /= sample_size;
-//        }
-//        std::cout << "direct_light:";
-//        debug::coutVec3(direct_light);
-            return direct_light + indirect_light;
+            if (material->getTexture() != nullptr) {
+                return direct_light + indirect_light +
+                       material->getTexture()->getPixel(intersection.texture_coords_[0],
+                                                        intersection.texture_coords_[1]);
+            } else {
+                return direct_light + indirect_light;
+            }
         } else {
             return glm::vec3(0.0f);
         }
     };
 
     glm::vec3 externalLight(const Ray &ray, Intersection intersection) const {
+        int sample_size = 10;
         Material *material = intersection.triangle_->material_;
         glm::vec3 ret(0.0f);
         for (int i = 0; i < light_triangles_.size(); i++) {
             glm::vec3 local_rgb(0.0f);
-            for (int j = 0; j < 10; j++) {
+            for (int j = 0; j < sample_size; j++) {
                 Intersection inter = light_triangles_[i]->getSample();
                 glm::vec3 light_origin = inter.coords_;
                 glm::vec3 light_direction = light_origin - intersection.coords_;
@@ -242,21 +188,17 @@ public:
                         glm::vec3 reflect_wi = global::getReflection(light_ray.direction, intersection.normal_);
                         float cos_n = global::clamp(
                                 std::pow(glm::dot(reflect_wi, -1.0f * ray.direction), material->getNs()));
-                        local_rgb += material->getKs() * energy * cos_n * (ks_length / (kd_length + ks_length));
+                        if (material->getTexture() != nullptr) {
+                            local_rgb += material->getKs() * energy * cos_n * (ks_length / (kd_length + ks_length)) *
+                                         material->getTexture()->getPixel(intersection.texture_coords_[0],
+                                                                          intersection.texture_coords_[1]);
+                        } else {
+                            local_rgb += material->getKs() * energy * cos_n * (ks_length / (kd_length + ks_length));
+                        }
                     }
-
-//                debug::coutVec3(energy, "energy");
-//                if (glm::length(material->getKd()) > EPSLION) {
-//                    float cos_i_o = glm::dot(light_d_n, intersection.normal_);
-//                    local_rgb += material->getKd() * energy;
-//                    if (cos_i_o > EPSLION) {
-//                        local_rgb += cos_i_o * material->getKd() * energy;
-//                    }
-//                }
                 }
             }
-//        debug::coutVec3(local_rgb, "local_rgb");
-            ret += local_rgb / 10.0f / Pi;
+            ret += local_rgb / static_cast<float >(sample_size) / Pi;
         }
         global::clamp(ret);
         return ret;
@@ -271,7 +213,6 @@ public:
 private:
 
     void initScene() {
-
 
         tinyobj::ObjReaderConfig reader_config;
         reader_config.triangulate = true;
@@ -371,6 +312,7 @@ private:
                     if (2 * idx.texcoord_index < attrib.texcoords.size()) {
                         tinyobj::real_t texture_x = attrib.texcoords[2 * idx.texcoord_index + 0];
                         tinyobj::real_t texture_y = attrib.texcoords[2 * idx.texcoord_index + 1];
+
                         tex[v] = glm::vec3(texture_x, texture_y, 0.0f);
                     }
                 }
@@ -415,8 +357,13 @@ private:
     int image_width_ = 500;
     int image_height_ = 500;
     std::vector<glm::vec3> image_data_;
-
     std::vector<Texture *> texture_data_;
+
+
+    glm::vec3 position_;
+    glm::vec3 look_at_;
+    glm::vec3 up_;
+    float fov_;
 };
 
 #endif //RAYTRACING_STH_SCENE_HPP

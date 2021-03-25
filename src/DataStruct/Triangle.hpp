@@ -35,13 +35,6 @@ public:
         setPmax(v2);
         center_ = glm::vec3{(p_min_.x + p_min_.x) * 0.5f, (p_min_.y + p_max_.y) * 0.5f, (p_min_.z + p_max_.z) * 0.5f};
     }
-
-    Bound(const glm::vec3 &p1, const glm::vec3 &p2) {
-        p_min_ = glm::vec3(fmin(p1.x, p2.x), fmin(p1.y, p2.y), fmin(p1.z, p2.z));
-        p_max_ = glm::vec3(fmax(p1.x, p2.x), fmax(p1.y, p2.y), fmin(p1.z, p2.z));
-        center_ = glm::vec3{(p_min_.x + p_min_.x) * 0.5f, (p_min_.y + p_max_.y) * 0.5f, (p_min_.z + p_max_.z) * 0.5f};
-    }
-
     Bound(std::vector<glm::vec3> &&vs);
 
     void setPmin(glm::vec3 p) {
@@ -106,10 +99,11 @@ public:
         e1_ = v2_ - v0_;
         if (glm::length(nor[0]) <= EPSLION && glm::length(nor[1]) <= EPSLION && glm::length(nor[2])) {
             normal_ = glm::normalize(glm::cross(e0_, e1_));
+            debug::coutStr("construct normal");
         } else {
-            normal_ = (nor[0] + nor[1] + nor[2]) / glm::vec3(3.0f, 3.0f, 3.0f);
+            normal_ = glm::normalize((nor[0] + nor[1] + nor[2]) / 3.0f);
         }
-        area_ = glm::length(glm::dot(e0_, e1_)) * 0.5f;
+        area_ = glm::length(glm::cross(e0_, e1_)) * 0.5f;
         bound_ = Bound(v0_, v1_, v2_);
     };
 
@@ -203,7 +197,8 @@ inline Intersection Triangle::getIntersectionWithLimit(const Ray &ray) {
     if (global::hasIntersectionRayTriangle(v0_, v1_, v2_, ray.origin, ray.direction, t_near, u, v)) {
         ret_inter.happened_ = true;
         ret_inter.coords_ = ray(t_near);
-        ret_inter.texture_coords_ = glm::vec3((1.0f - u - v) * t0_ + u * t1_ + v * t2_);;
+        ret_inter.texture_coords_ = glm::vec3((1.0f - u - v) * t0_ + u * t1_ + v * t2_);
+
         ret_inter.normal_ = normal_;
         ret_inter.distance_ = t_near;
         ret_inter.triangle_ = this;
@@ -220,6 +215,7 @@ inline Intersection Triangle::getIntersectionWithoutLimit(const Ray &ray) {
         ret_inter.happened_ = true;
         ret_inter.coords_ = ray(t_near);
         ret_inter.texture_coords_ = glm::vec3((1.0f - u - v) * t0_ + u * t1_ + v * t2_);;
+
         ret_inter.normal_ = normal_;
         ret_inter.distance_ = t_near;
         ret_inter.triangle_ = this;
